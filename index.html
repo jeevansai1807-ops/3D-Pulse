@@ -1,51 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Interactive Particle Playground</title>
-
-    <!-- External Dependencies via CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
-        crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
-        crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
-
-    <!-- Stylesheet -->
+    <title>3D Saturn Particle System</title>
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Three.js -->
+    <script src="3d-particle-playground/libs/three.min.js"></script>
+    
+    <!-- MediaPipe dependencies -->
+    <script src="3d-particle-playground/libs/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="3d-particle-playground/libs/hands.js" crossorigin="anonymous"></script>
+    
+    <!-- dat.GUI -->
+    <script src="3d-particle-playground/libs/dat.gui.min.js"></script>
 </head>
-
 <body>
-
-    <!-- Video Element (used internally by MediaPipe) -->
-    <div id="video-container">
-        <video id="video" playsinline></video>
-        <canvas id="hand-canvas"></canvas>
-    </div>
-
-    <!-- UI Overlay elements -->
-    <div id="camera-status">🎥 Status: Requesting camera permissions...</div>
-
     <div id="readme">
-        <h3>✨ Particle Playground Controls</h3>
-        <p>Control particles using your camera gestures or manual fallback controls.</p>
-
-        <h4>🖐️ Hand Gestures</h4>
+        <h1>Saturn Simulation</h1>
+        <p>Interactive gestures:</p>
         <ul>
-            <li><strong>Spread:</strong> Move hands apart or together to expand/contract particle cloud.</li>
-            <li><strong>Scale:</strong> Open hand (fingers spread) to enlarge, close hand into a fist to shrink.</li>
-            <li><strong>Fireworks:</strong> Make a fast snap-fist gesture while using the Fireworks template.</li>
+            <li><b>Two Hands:</b> Pan and tilt to rotate Saturn.</li>
+            <li><b>One Hand Pinch:</b> Zoom in and out.</li>
+            <li><b>One Hand Open:</b> Drag to translate Saturn.</li>
         </ul>
-
-        <h4>🖱️ Manual Fallback</h4>
-        <p>If camera is disabled, uncheck <em>Enable Camera Control</em> in the control panel to use mouse drag.</p>
     </div>
 
-    <!-- Application JavaScript Logic -->
+    <canvas id="output_canvas"></canvas>
+    <div id="loading">Loading Saturn System...</div>
+    
+    <div id="pip_hand_container">
+        <video id="input_video" playsinline></video>
+        <canvas id="pip_hand_canvas"></canvas>
+    </div>
+
     <script src="script.js"></script>
 </body>
-
 </html>

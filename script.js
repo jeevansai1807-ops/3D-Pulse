@@ -1,515 +1,365 @@
-// --- GLOBAL VARIABLES & CONFIGURATION ---
-let scene, camera3D, renderer, particles;
-const particleCount = 80000;
-const clock = new THREE.Clock();
-const LERP_SPEED = 0.1;
+// --- Helper function for distance calculation ---
+function getFingerDistance(p1, p2) {
+    const dx = p1.x - p2.x;
+    const dy = p1.y - p2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
 
+// --- Create a circular texture for smooth particles ---
+function createCircleTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.beginPath();
+    ctx.arc(32, 32, 30, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    
+    return new THREE.CanvasTexture(canvas);
+}
+
+let camera, scene, renderer;
+let saturnGroup;
+let targetCameraZ = 300; 
+let currentCameraZ = 300;
+let targetRotationX = 11;
+let targetRotationY = 11;
+
+// GUI Parameters
 const GUI_PARAMS = {
-    template: 'hearts',
-    color: '#FF44AA',
-    particleSize: 3.0,
-    motionNoiseStrength: 0.05,
-    gestureControl: true,
-    spread: 0.5,
-    scale: 0.5,
-    activeCount: 40000,
+    particleSize: 4,
+    ringSize: 2.5,
+    manualControl: false
 };
 
-const HAND_STATE = {
-    ready: false,
-    tracking: false,
-    handTension: 0.0,
-    lastTension: 0.0,
-};
+// Constants 
+const PLANET_RADIUS = 60;
+const INNER_RING_RADIUS = 80;
+const OUTER_RING_RADIUS = 150;
+const PARTICLE_COUNT = 300000; 
+const MOVEMENT_RANGE_X = 1500;
+const MOVEMENT_RANGE_Y = 150;
 
-// --- TEMPLATE GENERATOR FUNCTIONS ---
+// State Variables for dragging
+let dragStart = {x: 0, y: 0};
+let saturnStart = {x: 0, y: 0};
+let isDragging = false; 
 
-function generateHeartTemplate(count) {
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-        const t = Math.random() * 2 * Math.PI;
-        const r = 2.0;
-        let x = r * 16 * Math.pow(Math.sin(t), 3);
-        let y = -r * (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-        let z = (Math.random() - 0.5) * 40;
+let sphereParticles, ringParticles;
+let pipCanvas, pipCtx, videoElement;
 
-        positions[i * 3 + 0] = x * 0.05;
-        positions[i * 3 + 1] = y * 0.05 + 1.0;
-        positions[i * 3 + 2] = z * 0.01;
-    }
-    return positions;
-}
+document.addEventListener('DOMContentLoaded', () => {
+    pipCanvas = document.getElementById('pip_hand_canvas');
+    pipCtx = pipCanvas.getContext('2d');
+    videoElement = document.getElementById('input_video');
 
-function generateFlowerTemplate(count) {
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-        const r1 = Math.pow(Math.random(), 0.3) * 2;
-        const theta = Math.random() * 2 * Math.PI;
-        const phi = (Math.random() * 2 - 1) * Math.PI;
-
-        let x = r1 * Math.cos(theta) * Math.cos(phi);
-        let y = r1 * Math.sin(phi);
-        let z = r1 * Math.sin(theta) * Math.cos(phi);
-
-        const petalFactor = Math.sin(theta * 5) * 0.2;
-        x += x * petalFactor;
-        z += z * petalFactor;
-
-        positions[i * 3 + 0] = x;
-        positions[i * 3 + 1] = y;
-        positions[i * 3 + 2] = z;
-    }
-    return positions;
-}
-
-function generateSaturnTemplate(count) {
-    const positions = new Float32Array(count * 3);
-    const coreCount = Math.floor(count * 0.35);
-
-    for (let i = 0; i < coreCount; i++) {
-        const r = Math.pow(Math.random(), 1 / 3) * 0.6;
-        const theta = Math.random() * 2 * Math.PI;
-        const phi = (Math.random() * 2 - 1) * Math.PI;
-        positions[i * 3 + 0] = r * Math.cos(theta) * Math.cos(phi);
-        positions[i * 3 + 1] = r * Math.sin(phi);
-        positions[i * 3 + 2] = r * Math.sin(theta) * Math.cos(phi);
-    }
-
-    for (let i = 0; i < count - coreCount; i++) {
-        const idx = coreCount + i;
-        const r = THREE.MathUtils.randFloat(1.1, 2.2);
-        const theta = Math.random() * 2 * Math.PI;
-        const height = THREE.MathUtils.randFloat(-0.04, 0.04);
-        positions[idx * 3 + 0] = r * Math.cos(theta);
-        positions[idx * 3 + 1] = height;
-        positions[idx * 3 + 2] = r * Math.sin(theta);
-    }
-    return positions;
-}
-
-function generateBuddhaTemplate(count) {
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-        let x, y, z;
-        if (Math.random() < 0.5) {
-            x = (Math.random() - 0.5) * 0.3;
-            y = (Math.random() - 0.5) * 2.5;
-        } else {
-            x = (Math.random() - 0.5) * 1.8;
-            y = (Math.random() - 0.5) * 0.3;
-        }
-        z = (Math.random() - 0.5) * 0.2;
-
-        positions[i * 3 + 0] = x;
-        positions[i * 3 + 1] = y + 0.2;
-        positions[i * 3 + 2] = z;
-    }
-    return positions;
-}
-
-function generateFireworksTemplate(count) {
-    return generateHeartTemplate(count);
-}
-
-// Global particle shape registry
-const PARTICLE_TEMPLATES = {
-    hearts: generateHeartTemplate(particleCount),
-    flowers: generateFlowerTemplate(particleCount),
-    saturn: generateSaturnTemplate(particleCount),
-    buddha: generateBuddhaTemplate(particleCount),
-    fireworks: generateFireworksTemplate(particleCount),
-};
-
-// --- GLSL SHADERS ---
-
-const vertexShader = `
-    uniform float uTime;
-    uniform float uSize;
-    uniform float uSpread;
-    uniform float uScale;
-    uniform float uTemplateMix;
-    uniform float uExplosionIntensity;
-
-    attribute vec3 position2; 
-    attribute float pIndex; 
-
-    varying float vAlpha;
-
-    void main() {
-        vec3 targetPosition = mix(position, position2, uTemplateMix);
-        vec3 finalPosition = targetPosition * uScale + targetPosition * uSpread * 4.0;
-
-        // Add a slight movement using pIndex and uTime
-        finalPosition.x += sin(uTime * 0.5 + pIndex * 100.0) * 0.05;
-        finalPosition.y += cos(uTime * 0.5 + pIndex * 100.0) * 0.05;
-
-        if (uExplosionIntensity > 0.0) {
-            vec3 dir = normalize(finalPosition + vec3(0.001));
-            finalPosition += dir * uExplosionIntensity * 15.0;
-        }
-
-        vec4 mvPosition = modelViewMatrix * vec4(finalPosition, 1.0);
-        gl_PointSize = uSize * (250.0 / -mvPosition.z);
-        gl_Position = projectionMatrix * mvPosition;
-
-        vAlpha = max(0.0, 1.0 - uExplosionIntensity); 
-    }
-`;
-
-const fragmentShader = `
-    uniform vec3 uColor;
-    varying float vAlpha;
-
-    void main() {
-        vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-        float r = length(cxy);
-        if (r > 1.0) {
-            discard;
-        }
-        // Crisper circle and reduced alpha for better clarity
-        float alpha = smoothstep(1.0, 0.7, r) * vAlpha * 0.4;
-        gl_FragColor = vec4(uColor, alpha);
-    }
-`;
-
-// --- THREE.JS SCENE SETUP ---
-
-function initThree() {
-    scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x111111, 10, 100);
-
-    camera3D = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera3D.position.z = 10;
-
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    document.body.appendChild(renderer.domElement);
-
-    createParticleSystem(particleCount);
+    initThreeJS();
     initGUI();
-
-    window.addEventListener('resize', onWindowResize, false);
+    initMediaPipe();
     animate();
-}
+});
 
-function createParticleSystem(count) {
-    if (particles) scene.remove(particles);
-
+function createParticleSphere() {
     const geometry = new THREE.BufferGeometry();
-    const positions = PARTICLE_TEMPLATES.hearts.slice(0, count * 3);
-    const positions2 = PARTICLE_TEMPLATES.hearts.slice(0, count * 3);
-    const pIndices = new Float32Array(count);
+    const positions = [];
+    const colors = [];
+    const colorPole = new THREE.Color(0xd2b48c);
+    const colorEquator = new THREE.Color(0xf4d38c);
+    const tempColor = new THREE.Color();
 
-    for (let i = 0; i < count; i++) {
-        pIndices[i] = i / count;
+    for (let i = 0; i < PARTICLE_COUNT * 0.6; i++) {
+        const phi = Math.acos(-1 + (2 * i) / (PARTICLE_COUNT * 0.6));
+        const theta = Math.sqrt(PARTICLE_COUNT * Math.PI) * phi;
+        const r = PLANET_RADIUS + (Math.random() - 0.5) * 5; 
+        const x = r * Math.cos(theta) * Math.sin(phi);
+        const y = r * Math.sin(theta) * Math.sin(phi);
+        const z = r * Math.cos(phi);
+        positions.push(x, y, z);
+        const latitude = Math.abs(y / PLANET_RADIUS); 
+        tempColor.lerpColors(colorEquator, colorPole, latitude * 0.7); 
+        colors.push(tempColor.r, tempColor.g, tempColor.b);
     }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('position2', new THREE.BufferAttribute(positions2, 3));
-    geometry.setAttribute('pIndex', new THREE.BufferAttribute(pIndices, 1));
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
-    const material = new THREE.ShaderMaterial({
-        uniforms: {
-            uTime: { value: 0.0 },
-            uSize: { value: GUI_PARAMS.particleSize },
-            uSpread: { value: GUI_PARAMS.spread },
-            uScale: { value: GUI_PARAMS.scale },
-            uColor: { value: new THREE.Color(GUI_PARAMS.color) },
-            uTemplateMix: { value: 0.0 },
-            uExplosionIntensity: { value: 0.0 },
-        },
-        vertexShader: vertexShader,
-        fragmentShader: fragmentShader,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
+    const material = new THREE.PointsMaterial({ 
+        size: GUI_PARAMS.particleSize, 
+        vertexColors: true, 
+        sizeAttenuation: true, 
+        map: createCircleTexture(), 
+        transparent: true 
     });
 
-    particles = new THREE.Points(geometry, material);
-    particles.geometry.setDrawRange(0, GUI_PARAMS.activeCount);
-    scene.add(particles);
+    sphereParticles = new THREE.Points(geometry, material);
+    saturnGroup.add(sphereParticles);
+}
+
+function createParticleRings() {
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    const ringColor = new THREE.Color(0xcccccc); 
+
+    for (let i = 0; i < PARTICLE_COUNT * 0.4; i++) { 
+        const r = THREE.MathUtils.randFloat(INNER_RING_RADIUS, OUTER_RING_RADIUS);
+        const angle = THREE.MathUtils.randFloat(0, Math.PI * 2);
+        const x = r * Math.cos(angle);
+        const y = (Math.random() - 0.5) * 2; 
+        const z = r * Math.sin(angle);
+        positions.push(x, y, z);
+        const colorFactor = 1 - ((r - INNER_RING_RADIUS) / (OUTER_RING_RADIUS - INNER_RING_RADIUS)) * 0.3;
+        const finalColor = ringColor.clone().multiplyScalar(colorFactor);
+        colors.push(finalColor.r, finalColor.r, finalColor.r);
+    }
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({ 
+        size: GUI_PARAMS.ringSize, 
+        vertexColors: true, 
+        sizeAttenuation: true, 
+        map: createCircleTexture(), 
+        transparent: true 
+    });
+
+    ringParticles = new THREE.Points(geometry, material);
+    saturnGroup.add(ringParticles);
+}
+
+function initThreeJS() {
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 3000);
+    camera.position.z = currentCameraZ;
+    
+    renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('output_canvas'), antialias: true });
+    // IMPORTANT: Keep sizeAttenuation correct by using the pixel ratio
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    saturnGroup = new THREE.Group();
+    saturnGroup.rotation.z = THREE.MathUtils.degToRad(26.7);
+    scene.add(saturnGroup);
+
+    createParticleSphere();
+    createParticleRings();
+    
+    window.addEventListener('resize', onWindowResize, false);
+}
+
+function initGUI() {
+    if (typeof dat !== 'undefined') {
+        const gui = new dat.GUI();
+        gui.add(GUI_PARAMS, 'particleSize', 1, 10).name('Sphere Size').onChange(val => {
+            if(sphereParticles) sphereParticles.material.size = val;
+        });
+        gui.add(GUI_PARAMS, 'ringSize', 1, 10).name('Ring Size').onChange(val => {
+            if(ringParticles) ringParticles.material.size = val;
+        });
+        gui.add(GUI_PARAMS, 'manualControl').name('Manual Mouse Drag').onChange(val => {
+            // Toggle gesture vs manual
+        });
+    }
 }
 
 function onWindowResize() {
-    camera3D.aspect = window.innerWidth / window.innerHeight;
-    camera3D.updateProjectionMatrix();
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// --- GESTURE PROCESSING ---
+// --- PIP SKELETON DRAWING ---
 
-function mapRange(value, in_min, in_max, out_min, out_max) {
-    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-}
-
-function calculateHandTension(landmarks) {
-    let totalDist = 0;
-    const points = [4, 8, 12, 16, 20];
-    const wrist = landmarks[0];
-
-    for (let i = 0; i < points.length; i++) {
-        const tip = landmarks[points[i]];
-        const dist = Math.sqrt(
-            Math.pow(tip.x - wrist.x, 2) +
-            Math.pow(tip.y - wrist.y, 2) +
-            Math.pow(tip.z - wrist.z, 2)
-        );
-        totalDist += dist;
+function drawPIP(results) {
+    // Match pip canvas size to actual video source
+    if (pipCanvas.width !== videoElement.videoWidth) {
+        pipCanvas.width = videoElement.videoWidth;
+        pipCanvas.height = videoElement.videoHeight;
     }
-    // Wrist to tips dist: ~1.0 for closed fist, ~2.5 for open hand.
-    return Math.min(1.0, Math.max(0.0, mapRange(totalDist, 1.0, 2.5, 0.0, 1.0)));
-}
-
-function processGestures(results) {
-    if (!GUI_PARAMS.gestureControl) return;
-
-    // Clear and prepare canvas
-    if (canvas2d && ctx && videoElement.videoWidth) {
-        canvas2d.width = videoElement.videoWidth;
-        canvas2d.height = videoElement.videoHeight;
-        ctx.clearRect(0, 0, canvas2d.width, canvas2d.height);
+    
+    pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+    
+    // Draw raw video to canvas
+    if (results.image) {
+        pipCtx.drawImage(results.image, 0, 0, pipCanvas.width, pipCanvas.height);
     }
+    
+    // Draw skeleton overlay
+    if (results.multiHandLandmarks) {
+        const HAND_CONNECTIONS = [
+            [0,1],[1,2],[2,3],[3,4],
+            [0,5],[5,6],[6,7],[7,8],
+            [5,9],[9,10],[10,11],[11,12],
+            [9,13],[13,14],[14,15],[15,16],
+            [13,17],[17,18],[18,19],[19,20],
+            [0,17]
+        ];
 
-    const detectedHands = results.multiHandLandmarks;
-
-    if (detectedHands && detectedHands.length > 0) {
-        // Draw hand skeleton
-        if (ctx) {
-            ctx.strokeStyle = '#00ffff';
-            ctx.lineWidth = 3;
-            const HAND_CONNECTIONS = [
-                [0,1],[1,2],[2,3],[3,4],
-                [0,5],[5,6],[6,7],[7,8],
-                [5,9],[9,10],[10,11],[11,12],
-                [9,13],[13,14],[14,15],[15,16],
-                [13,17],[17,18],[18,19],[19,20],
-                [0,17]
-            ];
+        for (const landmarks of results.multiHandLandmarks) {
+            pipCtx.strokeStyle = '#00ffff';
+            pipCtx.lineWidth = 4;
+            pipCtx.beginPath();
+            for (const [start, end] of HAND_CONNECTIONS) {
+                const pt1 = landmarks[start];
+                const pt2 = landmarks[end];
+                pipCtx.moveTo(pt1.x * pipCanvas.width, pt1.y * pipCanvas.height);
+                pipCtx.lineTo(pt2.x * pipCanvas.width, pt2.y * pipCanvas.height);
+            }
+            pipCtx.stroke();
             
-            detectedHands.forEach(landmarks => {
-                ctx.beginPath();
-                HAND_CONNECTIONS.forEach(([start, end]) => {
-                    const pt1 = landmarks[start];
-                    const pt2 = landmarks[end];
-                    ctx.moveTo(pt1.x * canvas2d.width, pt1.y * canvas2d.height);
-                    ctx.lineTo(pt2.x * canvas2d.width, pt2.y * canvas2d.height);
-                });
-                ctx.stroke();
-                
-                // Draw fingertips
-                ctx.fillStyle = '#ff00ff';
-                [4,8,12,16,20].forEach(tipIdx => {
-                    const tip = landmarks[tipIdx];
-                    ctx.beginPath();
-                    ctx.arc(tip.x * canvas2d.width, tip.y * canvas2d.height, 5, 0, 2*Math.PI);
-                    ctx.fill();
-                });
-            });
+            pipCtx.fillStyle = '#ff00ff';
+            for (const pt of landmarks) {
+                pipCtx.beginPath();
+                pipCtx.arc(pt.x * pipCanvas.width, pt.y * pipCanvas.height, 5, 0, 2*Math.PI);
+                pipCtx.fill();
+            }
         }
-
-        let avgTension = 0.0;
-        for (let i = 0; i < detectedHands.length; i++) {
-            avgTension += calculateHandTension(detectedHands[i]);
-        }
-        avgTension /= detectedHands.length;
-
-        HAND_STATE.handTension = THREE.MathUtils.lerp(HAND_STATE.handTension, avgTension, 0.2);
-
-        // Snap gesture detection for fireworks
-        const tensionDrop = HAND_STATE.lastTension - HAND_STATE.handTension;
-        if (tensionDrop > 0.35 && HAND_STATE.handTension < 0.25) {
-            triggerFireworks();
-        }
-        HAND_STATE.lastTension = HAND_STATE.handTension;
-
-        GUI_PARAMS.scale = mapRange(HAND_STATE.handTension, 0.0, 1.0, 0.1, 1.8);
-
-        if (detectedHands.length >= 2) {
-            const h1 = detectedHands[0][0];
-            const h2 = detectedHands[1][0];
-            const distX = Math.abs(h1.x - h2.x);
-            GUI_PARAMS.spread = mapRange(distX, 0.1, 0.8, 0.1, 3.0);
-        } else {
-            const h1 = detectedHands[0][0];
-            GUI_PARAMS.spread = mapRange(h1.x, 0.0, 1.0, 0.2, 2.0);
-        }
-
-    } else {
-        GUI_PARAMS.spread = THREE.MathUtils.lerp(GUI_PARAMS.spread, 0.5, 0.05);
-        GUI_PARAMS.scale = THREE.MathUtils.lerp(GUI_PARAMS.scale, 0.5, 0.05);
     }
 }
 
-// --- RENDER LOOP & TRANSITIONS ---
+// --- ROBUST HAND TRACKING LOGIC ---
+function onResults(results) {
+    const loadingEl = document.getElementById('loading');
+    if (loadingEl) loadingEl.style.display = 'none';
 
-let templateMixTarget = 0.0;
-let explosionIntensityTarget = 0.0;
+    // Draw the PIP overlay first
+    drawPIP(results);
+
+    if (GUI_PARAMS.manualControl) return;
+
+    const hands = results.multiHandLandmarks;
+
+    if (!hands || hands.length === 0) {
+        isDragging = false;
+        return;
+    }
+
+    const hand1 = hands[0]; 
+
+    // 1. ZOOM (Z) CONTROL - Uses Hand 1 Pinch
+    const indexTip = hand1[8];
+    const thumbTip = hand1[4];
+    const pinchDistance = getFingerDistance(indexTip, thumbTip);
+
+    targetCameraZ = THREE.MathUtils.mapLinear(pinchDistance, 0.02, 0.2, 80, 500); 
+    targetCameraZ = THREE.MathUtils.clamp(targetCameraZ, 80, 700);
+    
+    if (hands.length === 2) {
+        // --- 2. TWO-HAND ROTATION CONTROL ---
+        const hand2 = hands[1];
+        
+        const centerWristX = (hand1[0].x + hand2[0].x) / 2;
+        const centerWristY = (hand1[0].y + hand2[0].y) / 2;
+        const separationDistance = getFingerDistance(hand1[0], hand2[0]); 
+        
+        targetRotationY = THREE.MathUtils.mapLinear(centerWristX, 0.2, 0.8, -Math.PI / 4, Math.PI / 4); 
+        targetRotationX = THREE.MathUtils.mapLinear(centerWristY, 0.2, 0.8, Math.PI / 4, -Math.PI / 4); 
+        
+        saturnGroup.rotation.y += separationDistance * 0.01;
+        
+        isDragging = false; 
+
+    } else if (hands.length === 1) {
+        // --- 3. SINGLE-HAND DRAG/TRANSLATION CONTROL (Open Hand) ---
+        const PINCH_THRESHOLD = 0.08;
+        
+        if (pinchDistance > PINCH_THRESHOLD) { 
+            if (!isDragging) {
+                isDragging = true;
+                dragStart.x = hand1[0].x; 
+                dragStart.y = hand1[0].y; 
+                saturnStart.x = saturnGroup.position.x;
+                saturnStart.y = saturnGroup.position.y;
+            }
+
+            const deltaX = hand1[0].x - dragStart.x;
+            const deltaY = hand1[0].y - dragStart.y;
+            
+            const newX = saturnStart.x - deltaX * MOVEMENT_RANGE_X * 2;
+            const newY = saturnStart.y + deltaY * MOVEMENT_RANGE_Y * 2;
+            
+            saturnGroup.position.x += (newX - saturnGroup.position.x) * 0.1;
+            saturnGroup.position.y += (newY - saturnGroup.position.y) * 0.1;
+            
+        } else {
+            isDragging = false; 
+        }
+    }
+}
+
 
 function animate() {
     requestAnimationFrame(animate);
 
-    const elapsedTime = clock.getElapsedTime();
+    currentCameraZ += (targetCameraZ - currentCameraZ) * 0.1; 
+    camera.position.z = currentCameraZ;
+    
+    saturnGroup.rotation.y += (targetRotationY - saturnGroup.rotation.y) * 0.1; 
+    saturnGroup.rotation.x += (targetRotationX - saturnGroup.rotation.x) * 0.1; 
 
-    camera3D.position.x = Math.sin(elapsedTime * 0.05) * 10;
-    camera3D.position.y = Math.cos(elapsedTime * 0.05) * 10;
-    camera3D.lookAt(scene.position);
-
-    if (particles) {
-        const material = particles.material;
-        material.uniforms.uTemplateMix.value = THREE.MathUtils.lerp(material.uniforms.uTemplateMix.value, templateMixTarget, 0.08);
-
-        explosionIntensityTarget = THREE.MathUtils.lerp(explosionIntensityTarget, 0.0, 0.1);
-        material.uniforms.uExplosionIntensity.value = explosionIntensityTarget;
-
-        material.uniforms.uTime.value = elapsedTime;
-        material.uniforms.uSpread.value = THREE.MathUtils.lerp(material.uniforms.uSpread.value, GUI_PARAMS.spread, LERP_SPEED);
-        material.uniforms.uScale.value = THREE.MathUtils.lerp(material.uniforms.uScale.value, GUI_PARAMS.scale, LERP_SPEED);
+    if (!isDragging && saturnGroup.rotation.y === 0) {
+         saturnGroup.rotation.y += 0.003; 
     }
 
-    renderer.render(scene, camera3D);
+    renderer.render(scene, camera);
 }
 
-// --- MEDIAPIPE HAND TRACKING ---
 
-const videoElement = document.getElementById('video');
-const statusElement = document.getElementById('camera-status');
-const canvas2d = document.getElementById('hand-canvas');
-const ctx = canvas2d ? canvas2d.getContext('2d') : null;
-
-function setupCamera() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-        statusElement.textContent = "❌ Camera API not supported on this browser.";
-        GUI_PARAMS.gestureControl = false;
-        return;
-    }
-
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } })
-        .then(stream => {
-            videoElement.srcObject = stream;
-            videoElement.onloadedmetadata = () => {
-                videoElement.play();
-                initHandsTracking();
-            };
-        })
-        .catch(err => {
-            console.error(err);
-            statusElement.textContent = "❌ Camera access denied. Using manual controls.";
-            GUI_PARAMS.gestureControl = false;
-        });
-}
-
-function initHandsTracking() {
-    if (typeof Hands === 'undefined' || typeof Camera === 'undefined') {
-        statusElement.textContent = "❌ MediaPipe library scripts failed to load.";
-        return;
-    }
-
-    const hands = new Hands({
-        locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`;
-        }
-    });
-
+function initMediaPipe() {
+    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`});
     hands.setOptions({
-        maxNumHands: 2,
-        modelComplexity: 1,
+        maxNumHands: 2, 
+        modelComplexity: 1, 
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5
     });
+    hands.onResults(onResults);
 
-    hands.onResults(processGestures);
-
-    const cameraPipe = new Camera(videoElement, {
-        onFrame: async () => {
-            await hands.send({ image: videoElement });
-        },
-        width: 640,
-        height: 480
+    const cameraUtils = new Camera(videoElement, {
+        onFrame: async () => { await hands.send({image: videoElement}); },
+        width: 640, height: 480 
     });
-
-    cameraPipe.start();
-    statusElement.textContent = "✅ Camera connected. Tracking gestures!";
-}
-
-// --- UI & INTERACTION HELPERS ---
-
-function initGUI() {
-    const gui = new dat.GUI();
-
-    gui.add(GUI_PARAMS, 'template', Object.keys(PARTICLE_TEMPLATES)).name('Shape').onChange(setParticleTemplate);
-    gui.addColor(GUI_PARAMS, 'color').name('Color').onChange((val) => { particles.material.uniforms.uColor.value.set(val); });
-    gui.add(GUI_PARAMS, 'particleSize', 0.5, 8.0).name('Size');
-    gui.add(GUI_PARAMS, 'activeCount', 1000, particleCount).step(1000).name('Particle Count').onChange((val) => {
-        particles.geometry.setDrawRange(0, val);
+    cameraUtils.start().catch(err => {
+        console.error(err);
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            loadingEl.textContent = "Camera access denied. Use mouse controls.";
+            setTimeout(() => { loadingEl.style.display = 'none'; }, 3000);
+        }
+        GUI_PARAMS.manualControl = true;
     });
-
-    const gestureFolder = gui.addFolder('Gestures & Controls');
-    gestureFolder.add(GUI_PARAMS, 'gestureControl').name('Camera Enabled');
-    gestureFolder.add(GUI_PARAMS, 'spread', 0.1, 4.0).step(0.1).name('Spread').listen().onChange(() => { GUI_PARAMS.gestureControl = false; });
-    gestureFolder.add(GUI_PARAMS, 'scale', 0.1, 3.0).step(0.1).name('Scale').listen().onChange(() => { GUI_PARAMS.gestureControl = false; });
-    gestureFolder.open();
 }
 
-function triggerFireworks() {
-    if (GUI_PARAMS.template !== 'fireworks') return;
-    explosionIntensityTarget = 1.0;
-    setParticleTemplate('fireworks');
-}
-
-function setParticleTemplate(templateName) {
-    if (!particles || !PARTICLE_TEMPLATES[templateName]) return;
-
-    const currentGeometry = particles.geometry;
-    const currentTemplateName = GUI_PARAMS.template;
-
-    const currentPositions = PARTICLE_TEMPLATES[currentTemplateName];
-    currentGeometry.getAttribute('position').copyArray(currentPositions);
-    currentGeometry.getAttribute('position').needsUpdate = true;
-
-    GUI_PARAMS.template = templateName;
-    const newPositions = PARTICLE_TEMPLATES[templateName];
-    currentGeometry.getAttribute('position2').copyArray(newPositions);
-    currentGeometry.getAttribute('position2').needsUpdate = true;
-
-    particles.material.uniforms.uTemplateMix.value = 0.0;
-    templateMixTarget = 1.0;
-}
-
-// --- BOOTSTRAP APP ---
-
-document.addEventListener('DOMContentLoaded', () => {
-    initThree();
-    setupCamera();
-});
-
-// --- MOUSE FALLBACK CONTROLS ---
-
-let isDragging = false;
-let lastX = 0;
-let lastY = 0;
+// Mouse Drag Fallback
+let isMouseDragging = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
 
 document.addEventListener('mousedown', (e) => {
-    if (!GUI_PARAMS.gestureControl) {
-        isDragging = true;
-        lastX = e.clientX;
-        lastY = e.clientY;
+    if (GUI_PARAMS.manualControl) {
+        isMouseDragging = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
     }
 });
 
 document.addEventListener('mousemove', (e) => {
-    if (isDragging && !GUI_PARAMS.gestureControl) {
-        const deltaX = e.clientX - lastX;
-        const deltaY = e.clientY - lastY;
-
-        GUI_PARAMS.spread = THREE.MathUtils.clamp(GUI_PARAMS.spread + deltaX * 0.005, 0.1, 4.0);
-        GUI_PARAMS.scale = THREE.MathUtils.clamp(GUI_PARAMS.scale - deltaY * 0.005, 0.1, 3.0);
-
-        lastX = e.clientX;
-        lastY = e.clientY;
+    if (isMouseDragging && GUI_PARAMS.manualControl) {
+        const deltaX = e.clientX - lastMouseX;
+        const deltaY = e.clientY - lastMouseY;
+        
+        targetRotationY += deltaX * 0.01;
+        targetRotationX += deltaY * 0.01;
+        
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
     }
 });
 
 document.addEventListener('mouseup', () => {
-    isDragging = false;
+    isMouseDragging = false;
 });

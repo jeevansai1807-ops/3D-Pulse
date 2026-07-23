@@ -1,93 +1,86 @@
 body {
     margin: 0;
     overflow: hidden;
-    background-color: #111;
+    background-color: #000;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #fff;
 }
 
-canvas {
-    display: block;
-}
-
-#video-container {
+#output_canvas {
     position: absolute;
-    bottom: 15px;
-    right: 15px;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+#loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 20px;
+    pointer-events: none;
+    text-align: center;
+    z-index: 10;
+}
+
+#pip_hand_container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
     width: 240px;
     height: 180px;
-    z-index: 100;
-    opacity: 1;
-    border-radius: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    background-color: #111;
 }
 
-#video {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1); /* mirror the camera feed */
+#input_video {
+    display: none;
 }
 
-#hand-canvas {
+#pip_hand_canvas {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    transform: scaleX(-1); /* match the video mirror */
-    z-index: 10;
-}
-
-#camera-status {
-    position: absolute;
-    bottom: 15px;
-    left: 15px;
-    background: rgba(0, 0, 0, 0.75);
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-size: 14px;
-    z-index: 10;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dg.main {
-    z-index: 100 !important;
+    transform: scaleX(-1); /* Mirror view */
+    background-color: #000;
 }
 
 #readme {
     position: absolute;
-    top: 15px;
-    left: 15px;
-    max-width: 280px;
-    padding: 16px;
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
     z-index: 100;
-    font-size: 0.85em;
-    line-height: 1.4;
+    pointer-events: none;
 }
 
-#readme h3 {
-    margin-top: 0;
-    border-bottom: 1px solid #333;
-    padding-bottom: 6px;
-    font-size: 1.1em;
+#readme h1 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: #f4d38c;
 }
 
-#readme h4 {
-    margin: 10px 0 4px 0;
-    color: #ff44aa;
+#readme p, #readme ul {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 #readme ul {
-    padding-left: 18px;
-    margin: 4px 0;
+    padding-left: 20px;
+    margin-top: 5px;
 }
