@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Interactive Particle Playground</title>
+
+    <!-- External Dependencies via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Video Element (used internally by MediaPipe) -->
+    <div id="video-container">
+        <video id="video" playsinline></video>
+        <canvas id="hand-canvas"></canvas>
+    </div>
+
+    <!-- UI Overlay elements -->
+    <div id="camera-status">🎥 Status: Requesting camera permissions...</div>
+
+    <div id="readme">
+        <h3>✨ Particle Playground Controls</h3>
+        <p>Control particles using your camera gestures or manual fallback controls.</p>
+
+        <h4>🖐️ Hand Gestures</h4>
+        <ul>
+            <li><strong>Spread:</strong> Move hands apart or together to expand/contract particle cloud.</li>
+            <li><strong>Scale:</strong> Open hand (fingers spread) to enlarge, close hand into a fist to shrink.</li>
+            <li><strong>Fireworks:</strong> Make a fast snap-fist gesture while using the Fireworks template.</li>
+        </ul>
+
+        <h4>🖱️ Manual Fallback</h4>
+        <p>If camera is disabled, uncheck <em>Enable Camera Control</em> in the control panel to use mouse drag.</p>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script src="script.js"></script>
+</body>
+
+</html>
