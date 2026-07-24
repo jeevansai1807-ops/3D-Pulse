@@ -130,6 +130,130 @@ function createParticleRings() {
     saturnGroup.add(ringParticles);
 }
 
+window.setShape = function(shapeName) {
+    // Update button states if buttons exist
+    const btnSaturn = document.getElementById('btn_saturn');
+    if (btnSaturn) {
+        btnSaturn.classList.remove('active');
+        document.getElementById('btn_heart').classList.remove('active');
+        document.getElementById('btn_flower').classList.remove('active');
+        document.getElementById('btn_' + shapeName).classList.add('active');
+    }
+
+    // Clear existing particles
+    while(saturnGroup.children.length > 0){ 
+        const child = saturnGroup.children[0];
+        saturnGroup.remove(child); 
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+    }
+    sphereParticles = null;
+    ringParticles = null;
+
+    if (shapeName === 'saturn') {
+        createParticleSphere();
+        createParticleRings();
+        saturnGroup.rotation.set(0, 0, THREE.MathUtils.degToRad(26.7));
+    } else if (shapeName === 'heart') {
+        createHeartShape();
+        saturnGroup.rotation.set(0, 0, 0); 
+    } else if (shapeName === 'flower') {
+        createFlowerShape();
+        saturnGroup.rotation.set(0, 0, 0);
+    }
+    
+    // Reset interaction rotations to starting point
+    targetRotationX = 0;
+    targetRotationY = 0;
+    saturnGroup.rotation.x = 0;
+    saturnGroup.rotation.y = 0;
+}
+
+function createHeartShape() {
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    const colorCenter = new THREE.Color(0xff0055);
+    const colorEdge = new THREE.Color(0xffaaaa);
+    const tempColor = new THREE.Color();
+    
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const t = Math.PI * 2 * Math.random();
+        const u = Math.PI * Math.random() - Math.PI / 2;
+        const x = 16 * Math.pow(Math.sin(t), 3);
+        const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+        const z = 10 * Math.sin(u) + (Math.random() - 0.5) * 5; 
+        
+        const scale = 3 * Math.cbrt(Math.random()); // Reduced scale to fit screen
+        
+        const finalX = x * scale;
+        const finalY = y * scale;
+        const finalZ = z * scale;
+
+        positions.push(finalX, finalY, finalZ);
+        
+        tempColor.lerpColors(colorCenter, colorEdge, Math.random());
+        colors.push(tempColor.r, tempColor.g, tempColor.b);
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({ 
+        size: GUI_PARAMS.particleSize, 
+        vertexColors: true, 
+        sizeAttenuation: true, 
+        map: createCircleTexture(), 
+        transparent: true 
+    });
+
+    sphereParticles = new THREE.Points(geometry, material);
+    saturnGroup.add(sphereParticles);
+}
+
+function createFlowerShape() {
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    const colorCenter = new THREE.Color(0xffff00);
+    const colorPetal = new THREE.Color(0xff00ff);
+    const tempColor = new THREE.Color();
+    
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const theta = Math.random() * Math.PI * 2;
+        const r_random = Math.random();
+        
+        const k = 5;
+        const radius = Math.cos(k * theta) * 60; 
+        
+        const r_actual = Math.abs(radius) * Math.sqrt(r_random) * 1.5; // Scale to fill
+        
+        const x = r_actual * Math.cos(theta);
+        const y = r_actual * Math.sin(theta);
+        const z = (Math.random() - 0.5) * 10; 
+        
+        positions.push(x, y, z);
+        
+        const dist = Math.sqrt(x*x + y*y);
+        tempColor.lerpColors(colorCenter, colorPetal, Math.min(1, dist / 60));
+        colors.push(tempColor.r, tempColor.g, tempColor.b);
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({ 
+        size: GUI_PARAMS.particleSize, 
+        vertexColors: true, 
+        sizeAttenuation: true, 
+        map: createCircleTexture(), 
+        transparent: true 
+    });
+
+    sphereParticles = new THREE.Points(geometry, material);
+    saturnGroup.add(sphereParticles);
+}
+
 function initThreeJS() {
     scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x000000, 0.0015);
@@ -142,11 +266,9 @@ function initThreeJS() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 
     saturnGroup = new THREE.Group();
-    saturnGroup.rotation.z = THREE.MathUtils.degToRad(26.7);
     scene.add(saturnGroup);
 
-    createParticleSphere();
-    createParticleRings();
+    window.setShape('saturn');
     
     window.addEventListener('resize', onWindowResize, false);
 }

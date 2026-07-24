@@ -7,8 +7,11 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Hidden video element for MediaPipe -->
-    <video id="video" style="display: none;" autoplay playsinline></video>
+    <!-- Video and canvas for MediaPipe PIP -->
+    <div id="pip_hand_container">
+        <video id="video" style="display: none;" autoplay playsinline></video>
+        <canvas id="pip_hand_canvas"></canvas>
+    </div>
     
     <!-- UI Overlay elements -->
     <div id="ui-container">

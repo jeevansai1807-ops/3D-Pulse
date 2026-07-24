@@ -306,6 +306,7 @@ try {
 }
 
 function onResults(results) {
+    drawPIP(results);
     if (!controls.cameraControl) return;
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
@@ -412,3 +413,53 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// === PIP SKELETON DRAWING ===
+const pipCanvas = document.getElementById('pip_hand_canvas');
+const pipCtx = pipCanvas ? pipCanvas.getContext('2d') : null;
+
+function drawPIP(results) {
+    if (!pipCanvas || !pipCtx) return;
+    
+    if (pipCanvas.width !== videoElement.videoWidth && videoElement.videoWidth > 0) {
+        pipCanvas.width = videoElement.videoWidth;
+        pipCanvas.height = videoElement.videoHeight;
+    }
+    
+    pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+    
+    if (results.image) {
+        pipCtx.drawImage(results.image, 0, 0, pipCanvas.width, pipCanvas.height);
+    }
+    
+    if (results.multiHandLandmarks) {
+        const HAND_CONNECTIONS = [
+            [0,1],[1,2],[2,3],[3,4],
+            [0,5],[5,6],[6,7],[7,8],
+            [5,9],[9,10],[10,11],[11,12],
+            [9,13],[13,14],[14,15],[15,16],
+            [13,17],[17,18],[18,19],[19,20],
+            [0,17]
+        ];
+
+        for (const landmarks of results.multiHandLandmarks) {
+            pipCtx.strokeStyle = '#00ffff';
+            pipCtx.lineWidth = 4;
+            pipCtx.beginPath();
+            for (const [start, end] of HAND_CONNECTIONS) {
+                const pt1 = landmarks[start];
+                const pt2 = landmarks[end];
+                pipCtx.moveTo(pt1.x * pipCanvas.width, pt1.y * pipCanvas.height);
+                pipCtx.lineTo(pt2.x * pipCanvas.width, pt2.y * pipCanvas.height);
+            }
+            pipCtx.stroke();
+            
+            pipCtx.fillStyle = '#ff00ff';
+            for (const pt of landmarks) {
+                pipCtx.beginPath();
+                pipCtx.arc(pt.x * pipCanvas.width, pt.y * pipCanvas.height, 5, 0, 2*Math.PI);
+                pipCtx.fill();
+            }
+        }
+    }
+}

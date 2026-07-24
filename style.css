@@ -84,3 +84,33 @@ body {
     padding-left: 20px;
     margin-top: 5px;
 }
+
+#shape_selector {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 100;
+    display: flex;
+    gap: 10px;
+}
+
+#shape_selector button {
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+#shape_selector button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#shape_selector button.active {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: #f4d38c;
+    color: #f4d38c;
+}

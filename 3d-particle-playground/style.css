@@ -69,3 +69,27 @@ canvas {
 .dg.ac {
     z-index: 20 !important;
 }
+
+#pip_hand_container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 240px;
+    height: 180px;
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 100;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    background-color: #111;
+}
+
+#pip_hand_canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: scaleX(-1);
+    background-color: #000;
+}
