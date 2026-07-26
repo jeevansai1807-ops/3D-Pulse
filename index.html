@@ -17,30 +17,94 @@
     <script src="3d-particle-playground/libs/dat.gui.min.js"></script>
 </head>
 <body>
-    <div id="readme">
-        <h1>Saturn Simulation</h1>
-        <p>Interactive gestures:</p>
-        <ul>
-            <li><b>Two Hands:</b> Pan and tilt to rotate Saturn.</li>
-            <li><b>One Hand Pinch:</b> Zoom in and out.</li>
-            <li><b>One Hand Open:</b> Drag to translate Saturn.</li>
-        </ul>
+    <div id="app_switcher" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000;">
+        <button onclick="switchApp()" id="btn_switch_app" style="background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.3); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+            Switch to Particle Playground
+        </button>
     </div>
 
-    <div id="shape_selector">
-        <button onclick="setShape('saturn')" id="btn_saturn" class="active">Saturn</button>
-        <button onclick="setShape('heart')" id="btn_heart">Heart</button>
-        <button onclick="setShape('flower')" id="btn_flower">Flower</button>
-    </div>
+    <div id="app_container"></div>
 
-    <canvas id="output_canvas"></canvas>
-    <div id="loading">Loading Saturn System...</div>
-    
-    <div id="pip_hand_container">
-        <video id="input_video" playsinline></video>
-        <canvas id="pip_hand_canvas"></canvas>
-    </div>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentApp = urlParams.get('app') || 'saturn';
 
-    <script src="script.js"></script>
+        function switchApp() {
+            if (currentApp === 'saturn') {
+                window.location.href = '?app=playground';
+            } else {
+                window.location.href = '?app=saturn';
+            }
+        }
+
+        const appContainer = document.getElementById('app_container');
+        const switchBtn = document.getElementById('btn_switch_app');
+
+        if (currentApp === 'playground') {
+            switchBtn.innerText = 'Switch to Saturn Simulation';
+            document.title = '3D Particle Playground';
+            
+            appContainer.innerHTML = `
+                <!-- Video and canvas for MediaPipe PIP -->
+                <div id="pip_hand_container">
+                    <video id="video" style="display: none;" autoplay playsinline></video>
+                    <canvas id="pip_hand_canvas"></canvas>
+                </div>
+                
+                <!-- UI Overlay elements -->
+                <div id="ui-container">
+                    <div id="camera-status">
+                        <span class="indicator red"></span> Camera: Disconnected
+                    </div>
+                    <div id="readme-panel">
+                        <h2>Gestures</h2>
+                        <ul>
+                            <li><strong>Hand Distance (X):</strong> Controls particle spread</li>
+                            <li><strong>Fist Tension:</strong> Controls particle scale</li>
+                            <li><strong>Quick Fist Snap:</strong> Fireworks!</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            const script = document.createElement('script');
+            script.src = '3d-particle-playground/script.js?v=' + Date.now();
+            document.body.appendChild(script);
+
+        } else {
+            switchBtn.innerText = 'Switch to Particle Playground';
+            document.title = '3D Saturn Particle System';
+            
+            appContainer.innerHTML = `
+                <div id="readme">
+                    <h1>Saturn Simulation</h1>
+                    <p>Interactive gestures:</p>
+                    <ul>
+                        <li><b>Two Hands:</b> Pan and tilt to rotate Saturn.</li>
+                        <li><b>One Hand Pinch:</b> Zoom in and out.</li>
+                        <li><b>One Hand Open:</b> Drag to translate Saturn.</li>
+                    </ul>
+                </div>
+
+                <div id="shape_selector">
+                    <button onclick="window.setShape('saturn')" id="btn_saturn" class="active">Saturn</button>
+                    <button onclick="window.setShape('heart')" id="btn_heart">Heart</button>
+                    <button onclick="window.setShape('flower')" id="btn_flower">Flower</button>
+                </div>
+
+                <canvas id="output_canvas"></canvas>
+                <div id="loading">Loading Saturn System...</div>
+                
+                <div id="pip_hand_container">
+                    <video id="input_video" playsinline></video>
+                    <canvas id="pip_hand_canvas"></canvas>
+                </div>
+            `;
+            
+            const script = document.createElement('script');
+            script.src = 'script.js?v=' + Date.now();
+            document.body.appendChild(script);
+        }
+    </script>
 </body>
 </html>

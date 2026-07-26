@@ -50,16 +50,37 @@ let isDragging = false;
 let sphereParticles, ringParticles;
 let pipCanvas, pipCtx, videoElement;
 
-document.addEventListener('DOMContentLoaded', () => {
-    pipCanvas = document.getElementById('pip_hand_canvas');
-    pipCtx = pipCanvas.getContext('2d');
-    videoElement = document.getElementById('input_video');
+function initApp() {
+    try {
+        pipCanvas = document.getElementById('pip_hand_canvas');
+        pipCtx = pipCanvas.getContext('2d');
+        videoElement = document.getElementById('input_video');
 
-    initThreeJS();
-    initGUI();
-    initMediaPipe();
-    animate();
-});
+        initThreeJS();
+        initGUI();
+        
+        // Start animation regardless of camera success so the scene renders
+        animate();
+        
+        // Init MediaPipe last so camera issues don't stop rendering
+        initMediaPipe();
+    } catch (e) {
+        console.error("Saturn Init Error:", e);
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            loadingEl.textContent = "Error loading: " + e.message;
+            loadingEl.style.color = "red";
+        }
+    }
+}
+
+// Guarantee execution whether script is async or synchronous
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    // Small timeout ensures all synchronous innerHTML parsing is strictly complete
+    setTimeout(initApp, 10);
+}
 
 function createParticleSphere() {
     const geometry = new THREE.BufferGeometry();
